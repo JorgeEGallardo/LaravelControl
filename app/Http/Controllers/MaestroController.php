@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Maestro;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\DB; 
 
 class MaestroController extends Controller
 {
@@ -85,7 +85,7 @@ class MaestroController extends Controller
         Maestro::destroy($id);
         return response()->json(null, 204);
     }
-
+    
     public function actualizarStatus(Request $request, $id)
     {
         // Verificar si el maestro tiene clases asignadas
@@ -98,7 +98,7 @@ class MaestroController extends Controller
             DB::table('maestros')
                 ->where('id_maestro', $id)
                 ->update(['status' => '0']);
-
+            
             return response()->json(['message' => 'Estado del maestro actualizado exitosamente'], 200);
         } else {
             return response()->json(['error' => 'No puedes eliminar el maestro porque tiene clases cargadas'], 400);

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 
 
+
 class CorteController extends Controller
 {
     public function index()
@@ -19,26 +20,119 @@ class CorteController extends Controller
 
     public function corteCaja()
     {
-        $pagos = DB::table('pagos_programas')
-            ->leftJoin('programas_predefinidos', 'pagos_programas.id_programa', '=', 'programas_predefinidos.id_programa')
-            ->leftJoin('alumnos', 'pagos_programas.id_alumno', '=', 'alumnos.id_alumno')
-            ->where('pagos_programas.corte', 0)
-            ->select(
-                'pagos_programas.id_programa',
-                'pagos_programas.id_alumno',
-                'pagos_programas.fecha_pago',
-                'pagos_programas.periodo',
-                'pagos_programas.monto',
-                'pagos_programas.recibo',
-                'programas_predefinidos.nombre as nombre_programa',
-                'alumnos.nombre as nombre_alumno'
-            )
-            ->orderBy('pagos_programas.id_programa', 'desc')
-            ->orderBy('pagos_programas.periodo', 'desc')
-            ->get();
+     // Inicializar variables
+     $total = 0;
+     $num = 1;
 
-        return response()->json($pagos);
+     // Obtener los pagos de programas directamente desde la base de datos
+     $pagosProgramas = DB::table('pagos_programas')
+                         ->where('corte', 0)
+                         ->orderBy('id_programa', 'desc')
+                         ->orderBy('periodo', 'desc')
+                         ->get();
+
+     // Procesar los pagos de programas
+     $programaData = [];
+     foreach ($pagosProgramas as $pago) {
+         // Obtener el nombre del programa
+         if ($pago->id_programa != '000') {
+             $programa = DB::table('programas_predefinidos')
+                           ->where('id_programa', $pago->id_programa)
+                           ->first();
+             $programaNombre = $programa->nombre ?? 'Desconocido';
+         } else {
+             $programaNombre = 'VISITA';
+         }
+
+         // Obtener el nombre del alumno
+         $alumno = DB::table('alumnos')
+                     ->where('id_alumno', $pago->id_alumno)
+                     ->first();
+         $alumnoNombre = $alumno->nombre ?? 'Alumno no encontrado';
+
+         // Formatear la fecha
+         $fecha = strtoupper(date("d/M/Y", strtotime($pago->fecha_pago)));
+
+         // Almacenar los datos procesados
+         $programaData[] = [
+             'num' => $num++,
+             'recibo' => $pago->recibo,
+             'alumno' => $alumnoNombre,
+             'programa' => $programaNombre,
+             'periodo' => $pago->periodo,
+             'fecha' => $fecha,
+             'monto' => number_format($pago->monto, 2),
+         ];
+
+         $total += $pago->monto;
+     }
+
+     // Obtener los pagos secundarios directamente desde la base de datos
+     $pagosSecundarios = DB::table('pagos_secundarios')
+                           ->where('corte', 0)
+                           ->get();
+
+     // Procesar los pagos secundarios
+     $secundarioData = [];
+     foreach ($pagosSecundarios as $pago) {
+         // Obtener el nombre del alumno
+         $alumno = DB::table('alumnos')
+                     ->where('id_alumno', $pago->id_alumno)
+                     ->first();
+         $alumnoNombre = $alumno->nombre ?? 'Alumno no encontrado';
+
+         // Formatear la fecha
+         $fecha = strtoupper(date("d/M/Y", strtotime($pago->fecha_pago)));
+
+         // Almacenar los datos procesados
+         $secundarioData[] = [
+             'num' => $num++,
+             'recibo' => $pago->recibo,
+             'alumno' => $alumnoNombre,
+             'concepto' => $pago->concepto,
+             'periodo' => $pago->periodo,
+             'fecha' => $fecha,
+             'monto' => number_format($pago->monto, 2),
+         ];
+
+         $total += $pago->monto;
+     }
+     //obtener los datos de miselania
+     $miscelanea = DB::table('miscelanea')
+                        ->where('corte',0)
+                        ->get();
+
+    $miscelaneosData = [];
+    foreach ($miscelanea  as $pago) {
+
+        $miscelanea = DB::table('miscelanea')
+        ->where('corte', 0)
+        ->first();
+    // Formatear la fecha
+    $fecha = strtoupper(date("d/M/Y", strtotime($pago->fecha_pago)));
+
+    // Almacenar los datos procesados
+    $miscelaneosData[] = [
+        'num' => $num++,
+        'recibo' => $pago->recibo,
+        'alumno' => $pago->nombre,
+        'concepto' => $pago->concepto,
+        'periodo' => $pago->periodo,
+        'fecha' => $fecha,
+        'monto' => number_format($pago->monto, 2),
+    ];
+
+    $total += $pago->monto;
     }
+     // Retornar los datos procesados en formato JSON
+     return response()->json([
+         'programaData' => $programaData,
+         'secundarioData' => $secundarioData,
+        'miscelanioData' => $miscelaneosData,
+         'total' => number_format($total, 2),
+     ]);
+
+}
 
     public function getCortesPorAnio($anio)
     {
@@ -109,9 +203,9 @@ class CorteController extends Controller
             5 => 'MAYO', 6 => 'JUNIO', 7 => 'JULIO', 8 => 'AGOSTO',
             9 => 'SEPTIEMBRE', 10 => 'OCTUBRE', 11 => 'NOVIEMBRE', 12 => 'DICIEMBRE'
         ];
-        
+
         $mesnombre = $meses[$mes];
-        
+
         $totalfinal = 0;
         $num = 1;
 
@@ -126,7 +220,7 @@ class CorteController extends Controller
         }
 
         $data = [];
-        
+
         foreach ($cortes as $corte) {
             $id_corte = $corte->id_corte;
             $fecha = $corte->fecha;
@@ -267,18 +361,20 @@ class CorteController extends Controller
 
         $fecha = now()->format('Y-m-d');
         $total = $request->input('total');
+        $id_autor = $request->input('id_autor');
 
         if ($total != 0) {
             // Insertar en la tabla cortes
             $id_corte = DB::table('cortes')->insertGetId([
                 'fecha' => $fecha,
-                'id_autor' => "MK09P7",
+                'id_autor' => $id_autor,
                 'total' => $total
             ]);
 
             // Actualizar pagos_programas y pagos_secundarios
             DB::table('pagos_programas')->where('corte', '0')->update(['corte' => $id_corte]);
             DB::table('pagos_secundarios')->where('corte', '0')->update(['corte' => $id_corte]);
+            DB::table('miscelanea')->where('corte', '0')->update(['corte'=> $id_corte]);
 
             // Retornar respuesta JSON con el id del corte
             return response()->json(['id_corte' => $id_corte, 'message' => 'Corte realizado con éxito'], 200);
@@ -286,6 +382,46 @@ class CorteController extends Controller
             // Retornar error si no hay ingresos registrados
             return response()->json(['error' => 'No se realizó el corte porque no hay ingresos registrados'], 400);
         }
-    
+
+    }
+//MISCELANIA
+    public function miscelanea(Request $request)
+    {
+        $ano = date("Y");
+        $mes = date("M");
+        $dia = date("d");
+
+        $meses = [
+            'Jan' => 'ENE', 'Feb' => 'FEB', 'Mar' => 'MAR', 'Apr' => 'ABR',
+            'May' => 'MAY', 'Jun' => 'JUN', 'Jul' => 'JUL', 'Aug' => 'AGO',
+            'Sep' => 'SEPT', 'Oct' => 'OCT', 'Nov' => 'NOV', 'Dec' => 'DIC'
+        ];
+
+        $mes = strtoupper($meses[$mes]);
+        $fecha = strtoupper("$dia/$mes/$ano");
+        $periodo = $fecha;
+        $fecha = date("Y-m-d");
+
+        // Insertar el nuevo registro en la base de datos
+        $id = DB::table('miscelanea')->insertGetId([
+            'concepto' => "MISCELANEA",
+            'nombre' => $request->input('nombre'),
+            'periodo' => $periodo,
+            'monto' => $request->input('monto'),
+            'fecha_pago' => $fecha,
+            'corte' => 0,
+            'recibo' => 0, // Temporalmente dejamos este campo en null
+        ]);
+
+        // Generar el recibo con el formato "MISC" + last_id
+        $recibo = "MISC" . str_pad($id, 5, "0", STR_PAD_LEFT);
+
+        // Actualizar el registro con el recibo generado
+        DB::table('miscelanea')
+            ->where('id', $id)
+            ->update(['recibo' => $recibo]);
+
+        // Retornar una respuesta exitosa
+        return response()->json(['message' => 'Registro agregado exitosamente'], 201);
     }
 }

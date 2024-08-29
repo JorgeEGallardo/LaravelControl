@@ -17,24 +17,23 @@ class AlumnoController extends Controller
         return Alumno::all();
     }
 //lista de alumnos
-    public function mostrarDatosCombinados(Request $request)
-    {
-        $status = $request->input('status');
+public function mostrarDatosCombinados(Request $request)
+{
+    $status = $request->input('status');
 
-        $alumnos = Alumno::leftJoin('registro_predefinido', 'alumnos.id_alumno', '=', 'registro_predefinido.id_alumno')
-        ->leftJoin('programas_predefinidos', 'registro_predefinido.id_programa', '=', 'programas_predefinidos.id_programa')
-        ->select('alumnos.id_alumno', 'alumnos.nombre', 'alumnos.celular')
-        ->selectRaw('GROUP_CONCAT(programas_predefinidos.nombre ORDER BY programas_predefinidos.nombre ASC SEPARATOR ", ") as nombre_programa')
-        ->when($status !== null, function ($query) use ($status) {
-            return $query->where('alumnos.status', $status);
-        })
-        ->groupBy('alumnos.id_alumno', 'alumnos.nombre', 'alumnos.celular')
-        ->orderBy('alumnos.nombre', 'asc')
-        ->get();
-        return response()->json($alumnos, 200);
+    $alumnos = Alumno::leftJoin('registro_predefinido', 'alumnos.id_alumno', '=', 'registro_predefinido.id_alumno')
+    ->leftJoin('programas_predefinidos', 'registro_predefinido.id_programa', '=', 'programas_predefinidos.id_programa')
+    ->select('alumnos.id_alumno', 'alumnos.nombre', 'alumnos.celular')
+    ->selectRaw('GROUP_CONCAT(programas_predefinidos.nombre ORDER BY programas_predefinidos.nombre ASC SEPARATOR ", ") as nombre_programa')
+    ->when($status !== null, function ($query) use ($status) {
+        return $query->where('alumnos.status', $status);
+    })
+    ->groupBy('alumnos.id_alumno', 'alumnos.nombre', 'alumnos.celular')
+    ->orderBy('alumnos.nombre', 'asc')
+    ->get();
+    return response()->json($alumnos, 200);
 
-    }
-
+}
 //PDF
 public function PDFmostrarDatosCombinados(Request $request)
 {

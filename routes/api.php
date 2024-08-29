@@ -12,6 +12,7 @@ use App\Http\Controllers\ExpedienteAlumnoController;
 use App\Http\Controllers\DescuentosController;
 use App\Http\Controllers\CargosController;
 use App\Http\Controllers\ImprimirController;
+use App\Http\Controllers\AuthController;
 
 
 Route::middleware('api')->group(function () {
@@ -85,6 +86,7 @@ Route::middleware('api')->group(function () {
     Route::get('/cortes/{anio}/{mes}', [CorteController::class, 'getCortesPorMes']);
     Route::get('/info-cortes/{id_corte}', [CorteController::class, 'getPagosPorCorte']);
     Route::post('/realizar-corte', [CorteController::class, 'realizarCorte']);
+    Route::post('/miscelanea', [CorteController::class, 'miscelanea']);
 });
 
 Route::middleware('api')->group(function () {
@@ -116,4 +118,8 @@ Route::middleware('api')->group(function () {
 Route::middleware('api')->group(function () {
 Route::post('/buscar-alumnos', [ImprimirController::class, 'buscarAlumnos']);
 Route::post('/deudores', [ImprimirController::class, 'consultarDeudores']);
+});
+
+Route::middleware('api')->group(function () {
+Route::post('/login', [AuthController::class, 'login']);
 });

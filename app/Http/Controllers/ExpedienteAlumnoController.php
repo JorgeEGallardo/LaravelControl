@@ -9,6 +9,8 @@ use App\Models\RegistroPredefinido;
 use App\Models\AdeudoPrograma;
 use App\Models\Clase;
 use DB;
+use PDF;
+use Illuminate\Support\Facades\Storage;
 
 
 class ExpedienteAlumnoController extends Controller
@@ -67,7 +69,7 @@ class ExpedienteAlumnoController extends Controller
                     'deduccion' => $deduccion,
                     'importe' => $adeudo->monto,
                     'fecha_limite' => $fecha_limite,
-
+                    'id_programa' => $adeudo->id_programa
 
                 ];
 
@@ -89,7 +91,8 @@ class ExpedienteAlumnoController extends Controller
                     'concepto' => $adeudo->concepto,
                     'deduccion' => $deduccion,
                     'importe' => $adeudo->monto,
-                    'fecha_limite' => 'PAGO INMEDIATO'
+                    'fecha_limite' => 'PAGO INMEDIATO',
+                    'id_programa' => 'SEC'
                 ];
 
                 $total += $adeudo->monto;
@@ -266,7 +269,6 @@ class ExpedienteAlumnoController extends Controller
                         ->first();
 
                     $clasesData[] = [
-                        'id_programa' => $id_programa,
                         'nombre' => $clase->nombre,
                         'informacion' => $clase->informacion,
                         'maestro' => $maestro->nombre_titular,
@@ -274,7 +276,6 @@ class ExpedienteAlumnoController extends Controller
                 }
 
                 $data[] = [
-                    'id_programa' => $id_programa,
                     'nombre' => $nombre,
                     'mensualidad' => $mensualidad,
                     'beca' => $beca,
@@ -764,34 +765,22 @@ public function accionPago(Request $request)
         }
     }
   // Obtenemos los datos necesarios para el recibo
-  $recibo = '12345'; // Ejemplo de número de recibo
+  $recibo = $recibo; // Ejemplo de número de recibo
   $result = [
-      'id_alumno' => 1,
-      'nombre' => 'Carlos Nevárez',
+      'id_alumno' => $id_alumno,
+      'nombre' => $alumno->nombre
   ]; // Ejemplo de datos de alumno
-  $datos = [
-      [
-          'nombre_programa' => 'Programa 1',
-          'concepto' => 'Concepto del programa 1',
-          'periodo' => '2024',
-          'fecha_limite' => '2024-07-15',
-          'importe_programa' => 100,
-      ],
-      [
-          'nombre_programa' => 'Programa 2',
-          'concepto' => 'Concepto del programa 2',
-          'periodo' => '2024',
-          'fecha_limite' => '2024-07-20',
-          'importe_programa' => 150,
-      ],
-  ]; // Ejemplo de datos de programas
+  $datos = $pagos_realizados;
 
-    $pdf = PDF::loadView('recibo', compact('recibo', 'result', 'fechaDia', 'datos', 'total'));
+		   $pdf = PDF::loadView('recibo', compact('recibo', 'result', 'fechaDia', 'datos', 'total'));
 
-    $pdfPath = 'pdf/recibo_' . time() . '.pdf';
-    Storage::put('public/' . $pdfPath, $pdf->output());
+	$pdfPath = public_path('storage/pdf/recibo_' . time() . '.pdf');
 
-    $downloadLink = Storage::url($pdfPath);
+		// Guarda el archivo PDF directamente en la carpeta pública
+		file_put_contents($pdfPath, $pdf->output());
+
+		// Genera el enlace de descarga
+		$downloadLink = url('storage/pdf/' . basename($pdfPath));
 
     return response()->json([
         'message' => 'PDF generado exitosamente',
